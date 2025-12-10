@@ -1,4 +1,4 @@
-# Blobs: Versioned Storage with Live Sync
+# Blobs: Versioned storage with live sync
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Node.js](https://img.shields.io/badge/Node.js->=24-green.svg)](https://nodejs.org/)
