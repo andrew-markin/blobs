@@ -1,3 +1,5 @@
+import 'dotenv/config'
+
 import { getToken } from './auth.js'
 
 if (process.argv.length === 3) {

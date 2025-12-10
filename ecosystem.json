@@ -1,13 +1,17 @@
 {
-  "apps": [{
-    "name": "appository-sync",
-    "script": "server.js",
-    "node_args": "-r dotenv/config",
-    "exec_mode": "fork_mode",
-    "instances": 1,
-    "autorestart": true,
-    "watch": false,
-    "max_memory_restart": "512M",
-    "time": true
-  }]
+  "apps": [
+    {
+      "name": "blobs",
+      "script": "index.js",
+      "exec_mode": "fork",
+      "instances": 1,
+      "autorestart": true,
+      "max_memory_restart": "512M",
+      "cron_restart": "0 0 * * *",
+      "time": true,
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  ]
 }

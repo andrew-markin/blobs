@@ -1,23 +1,20 @@
-import { fileURLToPath } from 'url'
-import { getBucket } from './auth.js'
-import { Server } from 'socket.io'
+import 'dotenv/config'
+
 import AsyncLock from 'async-lock'
 import fs from 'fs-extra'
 import Joi from 'joi'
 import mortice from 'mortice'
+import os from 'os'
 import path from 'path'
+import { Server } from 'socket.io'
+
+import { getBucket } from './auth.js'
+
+const storageDir = process.env.STORAGE || path.join(os.homedir(), '.local/share/blobs/storage')
+fs.ensureDirSync(storageDir)
 
 const execLock = mortice('exec-lock', { timeout: 30000 })
-
-// Storage routines
-
-const docLock = new AsyncLock()
-
-const modulePath = fileURLToPath(import.meta.url)
-const moduleDir = path.dirname(modulePath)
-
-const storageDir = process.env.STORAGE || path.join(moduleDir, './storage')
-fs.ensureDirSync(storageDir)
+const blobLock = new AsyncLock()
 
 const server = new Server({ cors: { origin: true } })
 
@@ -31,8 +28,8 @@ server.use((socket, next) => {
 const subscriptions = new Map()
 
 const refSchema = Joi.string().allow(null).lowercase().hex().length(64)
-const dataSchema = Joi.string().base64().max(1024 * 1024)
-const versionSchema = Joi.number().optional().min(1)
+const dataSchema = Joi.string().base64().max(0x100000) // 1MB
+const versionSchema = Joi.number().integer().min(1).optional()
 
 server.on('connection', (socket) => {
   console.log(`Socket ${socket.id} connected`)
@@ -74,33 +71,35 @@ server.on('connection', (socket) => {
     }
   }
 
-  const getDocPath = () => {
+  const getBlobPath = () => {
     const { bucket, ref } = socket
     return path.join(storageDir, bucket, ref.substring(0, 2), `${ref}.json`)
   }
 
-  const readDoc = async () => {
-    const docPath = getDocPath()
-    const docBackupPath = `${docPath}.backup`
-    if (await fs.pathExists(docBackupPath)) {
-      // Restore document from backup if needed
-      fs.move(docBackupPath, docPath, { overwrite: true })
+  const readBlob = async () => {
+    const blobPath = getBlobPath()
+    const blobBackupPath = `${blobPath}.backup`
+    if (await fs.pathExists(blobBackupPath)) {
+      // Restore blob from backup if needed
+      fs.move(blobBackupPath, blobPath, { overwrite: true })
     }
-    // Read document if it exists
-    return (await fs.pathExists(docPath) &&
-            await fs.readJson(docPath, { throws: false })) || undefined
+    // Read blob if it exists
+    return (
+      ((await fs.pathExists(blobPath)) && (await fs.readJson(blobPath, { throws: false }))) ||
+      undefined
+    )
   }
 
-  const writeDoc = async (value) => {
-    const docPath = getDocPath()
-    const docBackupPath = `${docPath}.backup`
-    if (await fs.pathExists(docPath)) {
-      // Backup existing version of the document
-      await fs.move(docPath, docBackupPath, { overwrite: true })
+  const writeBlob = async (value) => {
+    const blobPath = getBlobPath()
+    const blobBackupPath = `${blobPath}.backup`
+    if (await fs.pathExists(blobPath)) {
+      // Backup existing version of the blob
+      await fs.move(blobPath, blobBackupPath, { overwrite: true })
     }
-    // Write document and remove backup
-    await fs.outputJson(docPath, value)
-    await fs.remove(docBackupPath)
+    // Write blob and remove backup
+    await fs.outputJson(blobPath, value)
+    await fs.remove(blobBackupPath)
   }
 
   socket.on('disconnect', (reason) => {
@@ -140,19 +139,26 @@ server.on('connection', (socket) => {
     try {
       assertRef()
       await versionSchema.validateAsync(known)
-      docLock.acquire(getKey(), async (done) => {
-        try {
-          const doc = await readDoc()
-          done(null, doc && {
-            ...(doc.version !== known) && { data: doc.data },
-            version: doc.version
-          })
-        } catch (err) {
-          done(err)
+      blobLock.acquire(
+        getKey(),
+        async (done) => {
+          try {
+            const blob = await readBlob()
+            done(
+              null,
+              blob && {
+                ...(blob.version !== known && { data: blob.data }),
+                version: blob.version
+              }
+            )
+          } catch (err) {
+            done(err)
+          }
+        },
+        (err, res) => {
+          ack(err ? { error: err.message } : res)
         }
-      }, (err, res) => {
-        ack(err ? { error: err.message } : res)
-      })
+      )
     } catch (err) {
       return ack({ error: err.message })
     } finally {
@@ -167,38 +173,42 @@ server.on('connection', (socket) => {
       assertRef()
       await dataSchema.validateAsync(data)
       await versionSchema.validateAsync(version)
-      docLock.acquire(getKey(), async (done) => {
-        try {
-          const nextDoc = { data }
-          const prevDoc = await readDoc()
-          if (prevDoc) {
-            if ((prevDoc.version !== version)) {
-              return done(null, {
-                success: false,
-                data: prevDoc.data,
-                version: prevDoc.version
-              })
+      blobLock.acquire(
+        getKey(),
+        async (done) => {
+          try {
+            const nextBlob = { data }
+            const prevBlob = await readBlob()
+            if (prevBlob) {
+              if (prevBlob.version !== version) {
+                return done(null, {
+                  success: false,
+                  data: prevBlob.data,
+                  version: prevBlob.version
+                })
+              }
+              nextBlob.version = version + 1
+              nextBlob.created = prevBlob.created
+              nextBlob.updated = Date.now()
+            } else {
+              nextBlob.version = 1
+              nextBlob.created = Date.now()
             }
-            nextDoc.version = version + 1
-            nextDoc.created = prevDoc.created
-            nextDoc.updated = Date.now()
-          } else {
-            nextDoc.version = 1
-            nextDoc.created = Date.now()
+            nextBlob.ip = socket.ip || 'unknown'
+            await writeBlob(nextBlob)
+            done(null, {
+              success: true,
+              version: nextBlob.version
+            })
+            emit('changed')
+          } catch (err) {
+            done(err)
           }
-          nextDoc.ip = socket.ip || 'unknown'
-          await writeDoc(nextDoc)
-          done(null, {
-            success: true,
-            version: nextDoc.version
-          })
-          emit('changed')
-        } catch (err) {
-          done(err)
+        },
+        (err, res) => {
+          ack(err ? { error: err.message } : res)
         }
-      }, (err, res) => {
-        ack(err ? { error: err.message } : res)
-      })
+      )
     } catch (err) {
       return ack({ error: err.message })
     } finally {
@@ -211,7 +221,8 @@ const shutdown = async () => {
   await execLock.writeLock()
   console.log('\nShutting down...')
   server.close(() => {
-    process.exit(0)
+    console.log('Server terminated')
+    process.exit()
   })
 }
 

@@ -1,26 +1,41 @@
 {
-  "name": "appository-sync",
-  "version": "0.1.3",
-  "scripts": {
-    "start": "node -r dotenv/config server",
-    "token": "node -r dotenv/config token",
-    "audit": "npm audit --omit=dev"
-  },
+  "name": "mayfleet-blobs",
+  "version": "1.0.0",
+  "author": "Andrew Markin",
+  "license": "GPL-3.0-only",
   "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "token": "node src/token.js",
+    "audit": "npm audit --omit=dev",
+    "deploy": "cross-env TARGET=developer@blobs.mayfleet.com npm-run-all deploy:*",
+    "deploy:reset": "rm -rf dist && mkdir -p dist",
+    "deploy:build": "ncc build src/server.js -o dist --minify",
+    "deploy:config": "cp .env ecosystem.json dist/",
+    "deploy:upload": "rsync -avz --rsync-path=\"mkdir -p ~/blobs && rsync\" dist/ $TARGET:blobs",
+    "deploy:restart": "ssh $TARGET \"export LC_ALL=en_US.UTF-8; source ~/.nvm/nvm.sh && cd ~/blobs && pm2 start ecosystem.json --silent && pm2 save\"",
+    "deploy:cleanup": "rm -rf dist"
+  },
   "dependencies": {
-    "async-lock": "^1.4.0",
-    "dotenv": "^16.1.4",
-    "fs-extra": "^11.1.1",
-    "joi": "^17.9.2",
-    "jsonwebtoken": "^9.0.0",
-    "mortice": "^3.0.0",
-    "socket.io": "^4.6.2"
+    "async-lock": "^1.4.1",
+    "dotenv": "^17.2.3",
+    "fs-extra": "^11.3.2",
+    "joi": "^18.0.2",
+    "jsonwebtoken": "^9.0.3",
+    "mortice": "^3.3.1",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
-    "eslint": "^8.42.0",
-    "eslint-config-standard": "^17.1.0",
-    "eslint-plugin-import": "^2.27.5",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^6.1.1"
+    "@eslint/compat": "^2.0.0",
+    "@eslint/js": "^9.39.1",
+    "@vercel/ncc": "^0.38.4",
+    "cross-env": "^10.1.0",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "globals": "^16.5.0",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.7.4"
   }
 }

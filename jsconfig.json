@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["./src/*.js"]
+    }
+  },
+  "exclude": ["node_modules", "dist"]
+}

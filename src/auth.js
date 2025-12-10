@@ -9,5 +9,7 @@ export const getToken = (bucket) => {
 export const getBucket = (token) => {
   try {
     return jwt.verify(token, SECRET).bucket
-  } catch {}
+  } catch {
+    // Nothing
+  }
 }
