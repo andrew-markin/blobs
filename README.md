@@ -1,15 +1,15 @@
-# Blobs: Versioned BLOB Storage with Real-Time Notifications
+# Blobs: Versioned Storage with Live Sync
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Node.js](https://img.shields.io/badge/Node.js->=24-green.svg)](https://nodejs.org/)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-Real--Time-blue.svg)](https://socket.io/)
 
-Blobs is a lightweight backend service that provides applications with a simple API to store binary data (BLOBs) using **optimistic concurrency control via versioning**. Each BLOB has a version number that increments with every update. Clients can safely update data by specifying the version they are modifying, preventing accidental overwrites—similar to the ETag pattern in web APIs or versioning in MongoDB. All changes are broadcast in real-time to connected clients via [Socket.IO](https://socket.io/). Server-side storage uses plain JSON files for simplicity and transparency.
+Blobs is a lightweight backend service that provides applications with a simple API to store binary data (BLOBs) using **optimistic concurrency control via versioning**. Each BLOB has a version number that increments with every update. Clients can safely update data by specifying the version they are modifying, preventing accidental overwrites — similar to the ETag pattern in web APIs or versioning in MongoDB. All changes are broadcast in real-time to connected clients via [Socket.IO](https://socket.io/). Server-side storage uses plain JSON files for simplicity and transparency.
 
 **Core Concept:**
 
 - **Version-Based Consistency:** Every BLOB has a monotonic version counter.
-- **Safe Updates:** Client must provide the exact current version to successfully update, preventing update collisions.
+- **Safe Updates:** Client provides exact current version to avoid collisions.
 - **Real-Time Sync:** All connected clients receive instant notifications on changes via Socket.IO.
 - **Transparent Storage:** Data is stored as readable JSON files — no database setup required.
 
