@@ -52,6 +52,39 @@ const submit = (event, ...args) => socket.timeout(10000).emitWithAck(event, ...a
 - After a successful `set`, the server emits `changed` with no arguments to the other sockets subscribed to the same blob, but not to its author. The notification is sent after the acknowledgement to the author. Clients usually react to it with `get`.
 - Socket.IO limits messages to 1,000,000 bytes by default, which is less than the data limit of 1MB, so larger requests close the connection without any acknowledgement.
 
+## Configuration
+
+The server is configured with environment variables. In development they can also be set in a `.env` file in the working directory, see [.env.example](.env.example).
+
+| Variable       | Default                        | Description                                                                                                                                      |
+| -------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TOKEN_SECRET` | required                       | Secret for signing and verifying bucket tokens. The server and the token script refuse to run without it, and changing it invalidates all tokens |
+| `PORT`         | `3000`                         | Port of the HTTP server, which is expected to be behind a reverse proxy terminating TLS                                                          |
+| `STORAGE`      | `~/.local/share/blobs/storage` | Directory of the blob files                                                                                                                      |
+
+Use a long random secret, e.g. generated with `openssl rand -base64 32`. In production the variables are set in the PM2 ecosystem file, see [Deployment](#deployment).
+
+### Tokens
+
+Generate a token for a bucket where `TOKEN_SECRET` is set:
+
+```bash
+npm run token <bucket>
+```
+
+The command prints the token, which gives access to the bucket only:
+
+```
+Token for bucket: <bucket>
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+As the production secret lives only on the server, generate production tokens in a checkout of this repository passing the secret for the single command:
+
+```bash
+TOKEN_SECRET=<secret from ~/blobs/ecosystem.json> npm run token <bucket>
+```
+
 ## Setup
 
 ### Prerequisites
@@ -59,25 +92,9 @@ const submit = (event, ...args) => socket.timeout(10000).emitWithAck(event, ...a
 - Node.js (version 24 or higher)
 - npm or yarn
 
-### 1. Configure Environment
-
-Blobs requires a `TOKEN_SECRET` environment variable for signing and verifying API authorization tokens. The easiest way is to create a `.env` file in the project root:
-
-```bash
-cp .env.example .env
-```
-
-Then edit `.env` and set your secure secret:
-
-```env
-TOKEN_SECRET=your_secure_random_secret_here
-```
-
-**⚠️ Security Note:** Use a strong, randomly generated string. In production, consider using a secure secret management system.
-
 ### Quick Start Summary
 
-1. Set `TOKEN_SECRET` in `.env`
+1. Set `TOKEN_SECRET` in `.env` (see [Configuration](#configuration))
 2. Generate a bucket-specific token with `npm run token <bucket-name>`
 3. Connect the client as described in [Protocol](#protocol)
 4. Start the server with `npm start`
@@ -133,14 +150,6 @@ ssh-keygen -t ed25519 -N "" -C "github-actions-blobs" -f blobs-deploy
    - `DEPLOY_SSH_KEY`: the private key, `gh secret set DEPLOY_SSH_KEY < blobs-deploy`
    - `DEPLOY_KNOWN_HOSTS`: the server host key from your own `known_hosts`, `ssh-keygen -F blobs.mayfleet.com | grep -v '^#' | gh secret set DEPLOY_KNOWN_HOSTS`
 3. Delete the local `blobs-deploy` files.
-
-### Tokens
-
-As the secret lives only on the server, generate tokens in a checkout of this repository passing the secret for the single command:
-
-```bash
-TOKEN_SECRET=<secret from ~/blobs/ecosystem.json> npm run token <bucket>
-```
 
 ## License
 
