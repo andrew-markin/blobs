@@ -7,6 +7,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { after, describe, it } from 'node:test'
 
+import fsExtra from 'fs-extra'
 import { io } from 'socket.io-client'
 
 process.env.TOKEN_SECRET = 'TEST_SECRET'
@@ -15,7 +16,7 @@ const { getToken } = await import('../src/auth.js')
 const { createServer } = await import('../src/app.js')
 
 const storageDir = await fs.mkdtemp(path.join(os.tmpdir(), 'blobs-test-'))
-const { server } = createServer({ storageDir })
+const { server, execLock } = createServer({ storageDir })
 server.listen(0)
 const url = `http://localhost:${server.httpServer.address().port}`
 
@@ -137,5 +138,34 @@ describe('storage failures', () => {
     await submit(client, 'set', { data: 'EEEE' })
     await submit(client, 'set', { data: 'FFFF', version: 1 })
     assert.deepEqual(await blobFiles('test', ref), [`${ref}.json`])
+  })
+})
+
+describe('shutdown', () => {
+  it('waits for writes in progress', async () => {
+    const ref = randomRef()
+    const client = await connect()
+    await submit(client, 'ref', ref)
+    // Slow the write down, and take the lock as the shutdown does meanwhile
+    const { outputJson } = fsExtra
+    let locked
+    fsExtra.outputJson = async (...args) => {
+      locked = execLock.writeLock().then(async (release) => {
+        const written = await fs.access(blobPath('test', ref)).then(
+          () => true,
+          () => false
+        )
+        release()
+        return written
+      })
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      return outputJson(...args)
+    }
+    try {
+      assert.deepEqual(await submit(client, 'set', { data: 'HHHH' }), { success: true, version: 1 })
+    } finally {
+      fsExtra.outputJson = outputJson
+    }
+    assert.equal(await locked, true)
   })
 })

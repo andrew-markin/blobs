@@ -15,14 +15,14 @@
     "check:eslint": "eslint .",
     "check:format": "prettier --check .",
     "audit": "npm audit --omit=dev",
-    "deploy": "cross-env AUTHORITY=developer@blobs.mayfleet.com RELEASE=$(date -u +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD) npm-run-all deploy:*",
+    "deploy": "cross-env AUTHORITY=${AUTHORITY:-developer@blobs.mayfleet.com} RELEASE=$(date -u +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD) npm-run-all deploy:*",
     "deploy:check": "test -z \"$(git status --porcelain)\" || (echo 'Working tree is not clean, commit or stash changes first' && exit 1)",
     "deploy:build": "rm -rf dist && ncc build src/server.js -o dist --minify",
     "deploy:upload": "rsync -az --rsync-path=\"mkdir -p ~/blobs/releases && rsync\" dist/ $AUTHORITY:blobs/releases/$RELEASE/",
     "deploy:activate": "ssh $AUTHORITY bash -s -- activate $RELEASE < deploy/remote.sh",
     "deploy:prune": "ssh $AUTHORITY bash -s -- prune < deploy/remote.sh",
     "deploy:cleanup": "rm -rf dist",
-    "rollback": "ssh developer@blobs.mayfleet.com bash -s -- rollback < deploy/remote.sh"
+    "rollback": "ssh ${AUTHORITY:-developer@blobs.mayfleet.com} bash -s -- rollback < deploy/remote.sh"
   },
   "dependencies": {
     "async-lock": "^1.4.1",

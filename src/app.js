@@ -152,24 +152,11 @@ export function createServer({ storageDir }) {
       try {
         assertRef()
         await versionSchema.validateAsync(known)
-        blobLock.acquire(
-          getKey(),
-          async (done) => {
-            try {
-              const blob = await readBlob()
-              done(
-                null,
-                blob && {
-                  ...(blob.version !== known && { data: blob.data }),
-                  version: blob.version
-                }
-              )
-            } catch (err) {
-              done(err)
-            }
-          },
-          (err, res) => {
-            ack(err ? { error: err.message } : res)
+        const blob = await blobLock.acquire(getKey(), readBlob)
+        ack(
+          blob && {
+            ...(blob.version !== known && { data: blob.data }),
+            version: blob.version
           }
         )
       } catch (err) {
@@ -188,42 +175,26 @@ export function createServer({ storageDir }) {
         assertRef()
         await dataSchema.validateAsync(data)
         await versionSchema.validateAsync(version)
-        blobLock.acquire(
-          getKey(),
-          async (done) => {
-            try {
-              const nextBlob = { data }
-              const prevBlob = await readBlob()
-              if (prevBlob) {
-                if (prevBlob.version !== version) {
-                  return done(null, {
-                    success: false,
-                    data: prevBlob.data,
-                    version: prevBlob.version
-                  })
-                }
-                nextBlob.version = version + 1
-                nextBlob.created = prevBlob.created
-                nextBlob.updated = Date.now()
-              } else {
-                nextBlob.version = 1
-                nextBlob.created = Date.now()
-              }
-              nextBlob.ip = socket.ip || 'unknown'
-              await writeBlob(nextBlob)
-              done(null, {
-                success: true,
-                version: nextBlob.version
-              })
-              emit('changed')
-            } catch (err) {
-              done(err)
+        const res = await blobLock.acquire(getKey(), async () => {
+          const nextBlob = { data }
+          const prevBlob = await readBlob()
+          if (prevBlob) {
+            if (prevBlob.version !== version) {
+              return { success: false, data: prevBlob.data, version: prevBlob.version }
             }
-          },
-          (err, res) => {
-            ack(err ? { error: err.message } : res)
+            nextBlob.version = version + 1
+            nextBlob.created = prevBlob.created
+            nextBlob.updated = Date.now()
+          } else {
+            nextBlob.version = 1
+            nextBlob.created = Date.now()
           }
-        )
+          nextBlob.ip = socket.ip || 'unknown'
+          await writeBlob(nextBlob)
+          return { success: true, version: nextBlob.version }
+        })
+        ack(res)
+        if (res.success) emit('changed')
       } catch (err) {
         return ack({ error: err.message })
       } finally {

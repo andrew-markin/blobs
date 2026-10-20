@@ -9,7 +9,12 @@ const storageDir = process.env.STORAGE || path.join(os.homedir(), '.local/share/
 
 const { server, execLock } = createServer({ storageDir })
 
+let shuttingDown = false
+
 const shutdown = async () => {
+  // A repeated signal would wait for the write lock held by the first one forever
+  if (shuttingDown) return
+  shuttingDown = true
   await execLock.writeLock()
   console.log('\nShutting down...')
   server.close(() => {
