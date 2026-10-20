@@ -90,4 +90,14 @@ describe('storage failures', () => {
     const res = await submit(client, 'set', { data: 'CCCC', version: 1 })
     assert.deepEqual(res, { success: false, data: 'AAAA', version: 3 })
   })
+
+  it('leave no temporary files after writes', async () => {
+    const ref = randomRef()
+    const client = await connect()
+    await submit(client, 'ref', ref)
+    await submit(client, 'set', { data: 'EEEE' })
+    await submit(client, 'set', { data: 'FFFF', version: 1 })
+    const dir = path.dirname(blobPath('test', ref))
+    assert.deepEqual(await fs.readdir(dir), [`${ref}.json`])
+  })
 })

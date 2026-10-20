@@ -79,7 +79,7 @@ export function createServer({ storageDir }) {
       const blobPath = getBlobPath()
       const blobBackupPath = `${blobPath}.backup`
       if (await fs.pathExists(blobBackupPath)) {
-        // Restore blob from backup if needed
+        // Restore blob from backup left by an interrupted write of older versions
         await fs.rename(blobBackupPath, blobPath)
       }
       // Read blob if it exists
@@ -91,14 +91,12 @@ export function createServer({ storageDir }) {
 
     const writeBlob = async (value) => {
       const blobPath = getBlobPath()
-      const blobBackupPath = `${blobPath}.backup`
-      if (await fs.pathExists(blobPath)) {
-        // Backup existing version of the blob
-        await fs.move(blobPath, blobBackupPath, { overwrite: true })
-      }
-      // Write blob and remove backup
-      await fs.outputJson(blobPath, value)
-      await fs.remove(blobBackupPath)
+      const blobTempPath = `${blobPath}.temp`
+      // Write to a temporary file first and then atomically replace the blob
+      // with it (rename within a directory), so that an interrupted write
+      // never damages the blob
+      await fs.outputJson(blobTempPath, value)
+      await fs.rename(blobTempPath, blobPath)
     }
 
     socket.on('disconnect', (reason) => {
