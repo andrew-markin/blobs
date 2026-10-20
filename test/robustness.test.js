@@ -56,3 +56,38 @@ describe('malformed requests', () => {
     }
   }
 })
+
+const blobPath = (bucket, ref) => path.join(storageDir, bucket, ref.substring(0, 2), `${ref}.json`)
+
+async function writeFile(file, content) {
+  await fs.mkdir(path.dirname(file), { recursive: true })
+  await fs.writeFile(file, content)
+}
+
+describe('storage failures', () => {
+  const blob = { data: 'AAAA', version: 3, created: 1 }
+
+  it('restore the blob from its backup when the write was interrupted', async () => {
+    const ref = randomRef()
+    const file = blobPath('test', ref)
+    await writeFile(`${file}.backup`, JSON.stringify(blob))
+    const client = await connect()
+    await submit(client, 'ref', ref)
+    assert.deepEqual(await submit(client, 'get', {}), { data: 'AAAA', version: 3 })
+    assert.deepEqual(JSON.parse(await fs.readFile(file, 'utf8')), blob)
+    await assert.rejects(fs.access(`${file}.backup`))
+  })
+
+  it('prefer the backup over a partially written blob', async () => {
+    const ref = randomRef()
+    const file = blobPath('test', ref)
+    await writeFile(file, '{"data":"BB')
+    await writeFile(`${file}.backup`, JSON.stringify(blob))
+    const client = await connect()
+    await submit(client, 'ref', ref)
+    assert.deepEqual(await submit(client, 'get', {}), { data: 'AAAA', version: 3 })
+    // Stale versions are still rejected after the recovery
+    const res = await submit(client, 'set', { data: 'CCCC', version: 1 })
+    assert.deepEqual(res, { success: false, data: 'AAAA', version: 3 })
+  })
+})

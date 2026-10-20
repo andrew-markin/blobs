@@ -80,7 +80,7 @@ export function createServer({ storageDir }) {
       const blobBackupPath = `${blobPath}.backup`
       if (await fs.pathExists(blobBackupPath)) {
         // Restore blob from backup if needed
-        fs.move(blobBackupPath, blobPath, { overwrite: true })
+        await fs.rename(blobBackupPath, blobPath)
       }
       // Read blob if it exists
       return (
