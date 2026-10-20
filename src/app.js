@@ -14,6 +14,11 @@ const isObject = (value) => typeof value === 'object' && value !== null
 const MAX_MESSAGE_SIZE = 1e6
 const MAX_DATA_LENGTH = MAX_MESSAGE_SIZE - 1000
 
+// Requests of a socket are limited with a token bucket, which allows bursts
+// of RATE_BURST requests and RATE_PER_SECOND requests on average
+const RATE_BURST = 20
+const RATE_PER_SECOND = 5
+
 export function createServer({ storageDir }) {
   fs.ensureDirSync(storageDir)
 
@@ -41,6 +46,22 @@ export function createServer({ storageDir }) {
 
   server.on('connection', (socket) => {
     console.log(`Socket ${socket.id} connected`)
+
+    let tokens = RATE_BURST
+    let refilled = Date.now()
+
+    socket.use((packet, next) => {
+      const now = Date.now()
+      tokens = Math.min(RATE_BURST, tokens + ((now - refilled) / 1000) * RATE_PER_SECOND)
+      refilled = now
+      if (tokens >= 1) {
+        tokens -= 1
+        return next()
+      }
+      const ack = packet[packet.length - 1]
+      if (typeof ack !== 'function') return socket.disconnect()
+      ack({ error: 'Too many requests' })
+    })
 
     const assertRef = () => {
       if (!socket.ref) throw new Error('Reference is not provided')

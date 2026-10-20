@@ -51,6 +51,7 @@ const submit = (event, ...args) => socket.timeout(10000).emitWithAck(event, ...a
 - `set` of a missing blob creates it with version 1, whatever version is given.
 - After a successful `set`, the server emits `changed` with no arguments to the other sockets subscribed to the same blob, but not to its author. The notification is sent after the acknowledgement to the author. Clients usually react to it with `get`.
 - `data` is limited to 999,000 base64 characters (749,250 bytes decoded), and longer data fails the request. Messages larger than 1,000,000 bytes close the connection without any acknowledgement.
+- Every socket can make 5 requests per second on average, with bursts of up to 20 requests. Requests above the limit fail with `Too many requests`.
 
 ## Configuration
 
@@ -150,10 +151,14 @@ PM2 doesn't reread the ecosystem file on restarts, so after changing it:
 
 Deployments fail with a hint when PM2 runs the app from another path than `~/blobs/current/index.js`.
 
-The server listens to plain HTTP, so it needs a reverse proxy terminating TLS, passing WebSocket connections through and setting the `X-Real-IP` header. For example, with nginx:
+The server listens to plain HTTP, so it needs a reverse proxy terminating TLS, passing WebSocket connections through and setting the `X-Real-IP` header. The server limits requests of every connection, but not the number of connections, so the proxy should limit connections per address. Keep the limit generous, as many devices may share an address behind NAT. For example, with nginx:
 
 ```nginx
+# In the http block
+limit_conn_zone $binary_remote_addr zone=blobs:10m;
+
 location / {
+  limit_conn blobs 50;
   proxy_pass http://127.0.0.1:3000;
   proxy_http_version 1.1;
   proxy_set_header Upgrade $http_upgrade;

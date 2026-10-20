@@ -58,6 +58,18 @@ describe('malformed requests', () => {
   }
 })
 
+describe('rate limit', () => {
+  it('fails requests above the burst until it refills', async () => {
+    const client = await connect()
+    const results = await Promise.all(Array.from({ length: 25 }, () => submit(client, 'now')))
+    const limited = results.filter((res) => res.error === 'Too many requests')
+    assert.equal(limited.length, 5)
+    // 5 requests per second refill a token in 200ms
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    assert.equal(typeof (await submit(client, 'now')).timestamp, 'number')
+  })
+})
+
 describe('data limit', () => {
   it('accepts the longest data and fails longer data with an error', async () => {
     const client = await connect()
