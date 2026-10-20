@@ -58,6 +58,18 @@ describe('malformed requests', () => {
   }
 })
 
+describe('data limit', () => {
+  it('accepts the longest data and fails longer data with an error', async () => {
+    const client = await connect()
+    await submit(client, 'ref', randomRef())
+    const longest = 'A'.repeat(999000)
+    assert.deepEqual(await submit(client, 'set', { data: longest }), { success: true, version: 1 })
+    const res = await submit(client, 'set', { data: `${longest}AAAA`, version: 1 })
+    assert.equal(typeof res.error, 'string')
+    assert.equal(client.connected, true)
+  })
+})
+
 // Blobs of random references may share directories, so only the files of the
 // given blob are listed
 async function blobFiles(bucket, ref) {

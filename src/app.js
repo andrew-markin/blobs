@@ -9,13 +9,18 @@ import { getBucket } from './auth.js'
 
 const isObject = (value) => typeof value === 'object' && value !== null
 
+// Socket.IO closes the connection on messages larger than this, so the data
+// limit leaves room for the rest of the request to fail it with an error
+const MAX_MESSAGE_SIZE = 1e6
+const MAX_DATA_LENGTH = MAX_MESSAGE_SIZE - 1000
+
 export function createServer({ storageDir }) {
   fs.ensureDirSync(storageDir)
 
   const execLock = mortice('exec-lock', { timeout: 30000 })
   const blobLock = new AsyncLock()
 
-  const server = new Server({ cors: { origin: true } })
+  const server = new Server({ cors: { origin: true }, maxHttpBufferSize: MAX_MESSAGE_SIZE })
 
   server.use((socket, next) => {
     socket.bucket = getBucket(socket.handshake.auth.token)
@@ -27,7 +32,7 @@ export function createServer({ storageDir }) {
   const subscriptions = new Map()
 
   const refSchema = Joi.string().allow(null).lowercase().hex().length(64)
-  const dataSchema = Joi.string().base64().max(0x100000) // 1MB
+  const dataSchema = Joi.string().base64().max(MAX_DATA_LENGTH)
   const versionSchema = Joi.number().integer().min(1).optional()
   const blobSchema = Joi.object({
     data: Joi.string().required(),

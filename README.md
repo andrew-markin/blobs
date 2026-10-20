@@ -50,7 +50,7 @@ const submit = (event, ...args) => socket.timeout(10000).emitWithAck(event, ...a
 - The reference is all it takes to find a blob in a bucket, so derive it from a secret known only to the clients (e.g. as an HMAC of it), never from guessable data.
 - `set` of a missing blob creates it with version 1, whatever version is given.
 - After a successful `set`, the server emits `changed` with no arguments to the other sockets subscribed to the same blob, but not to its author. The notification is sent after the acknowledgement to the author. Clients usually react to it with `get`.
-- Socket.IO limits messages to 1,000,000 bytes by default, which is less than the data limit of 1MB, so larger requests close the connection without any acknowledgement.
+- `data` is limited to 999,000 base64 characters (749,250 bytes decoded), and longer data fails the request. Messages larger than 1,000,000 bytes close the connection without any acknowledgement.
 
 ## Configuration
 

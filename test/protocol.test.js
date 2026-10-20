@@ -148,8 +148,8 @@ describe('get and set', () => {
 })
 
 describe('oversized requests', () => {
-  // Socket.IO limits messages to 1e6 bytes by default, which is less than the
-  // 1MB data limit, so such requests break the connection instead of failing
+  // Socket.IO limits messages to 1e6 bytes, so such requests break the
+  // connection instead of failing
   it('disconnect the client', async () => {
     const client = await connect()
     await submit(client, 'ref', randomRef())
