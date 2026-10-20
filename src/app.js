@@ -7,6 +7,8 @@ import { Server } from 'socket.io'
 
 import { getBucket } from './auth.js'
 
+const isObject = (value) => typeof value === 'object' && value !== null
+
 export function createServer({ storageDir }) {
   fs.ensureDirSync(storageDir)
 
@@ -130,8 +132,10 @@ export function createServer({ storageDir }) {
       }
     })
 
-    socket.on('get', async ({ known }, ack) => {
+    socket.on('get', async (params, ack) => {
       if (typeof ack !== 'function') return socket.disconnect()
+      if (!isObject(params)) return ack({ error: 'Invalid request' })
+      const { known } = params
       const release = await execLock.readLock()
       try {
         assertRef()
@@ -163,8 +167,10 @@ export function createServer({ storageDir }) {
       }
     })
 
-    socket.on('set', async ({ data, version }, ack) => {
+    socket.on('set', async (params, ack) => {
       if (typeof ack !== 'function') return socket.disconnect()
+      if (!isObject(params)) return ack({ error: 'Invalid request' })
+      const { data, version } = params
       const release = await execLock.readLock()
       try {
         assertRef()
