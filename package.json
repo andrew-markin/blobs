@@ -4,6 +4,9 @@
   "author": "Andrew Markin",
   "license": "GPL-3.0-only",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "start": "node src/server.js",
     "token": "node src/token.js",
@@ -23,25 +26,25 @@
   },
   "dependencies": {
     "async-lock": "^1.4.1",
-    "dotenv": "^17.2.3",
-    "fs-extra": "^11.3.2",
-    "joi": "^18.0.2",
+    "dotenv": "^17.4.2",
+    "fs-extra": "^11.4.1",
+    "joi": "^18.3.0",
     "jsonwebtoken": "^9.0.3",
     "mortice": "^3.3.1",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.4"
   },
   "devDependencies": {
-    "@eslint/compat": "^2.0.0",
-    "@eslint/js": "^9.39.1",
+    "@eslint/compat": "^2.1.1",
+    "@eslint/js": "^9.39.5",
     "@vercel/ncc": "^0.38.4",
     "cross-env": "^10.1.0",
-    "eslint": "^9.39.1",
+    "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "globals": "^16.5.0",
     "npm-run-all": "^4.1.5",
-    "prettier": "^3.7.4",
+    "prettier": "^3.9.10",
     "socket.io-client": "^4.8.4"
   }
 }
