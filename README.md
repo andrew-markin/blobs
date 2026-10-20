@@ -16,6 +16,42 @@ The server treats the data as opaque base64 strings, so clients can compress and
 - **Real-Time Sync:** All connected clients receive instant notifications on changes via Socket.IO.
 - **Transparent Storage:** Data is stored as readable JSON files — no database setup required.
 
+## Protocol
+
+Clients talk to the server with [Socket.IO](https://socket.io/) 4 over WebSocket. Every request is an event with an acknowledgement callback, and requests without one make the server disconnect the client. Failed requests are acknowledged with `{ error: <message> }`.
+
+The behavior described here is fixed by the contract tests in [test/protocol.test.js](test/protocol.test.js), which have to keep passing for existing clients to keep working.
+
+### Connecting
+
+Data is organized into **buckets**, isolated namespaces for different applications or environments. Every client application gets a token for its bucket, a JWT signed with the server `TOKEN_SECRET` (see [Tokens](#tokens)). Connections without a valid token are refused with `Access denied`.
+
+```javascript
+import { io } from 'socket.io-client'
+
+const socket = io('wss://blobs.example.com', {
+  transports: ['websocket'],
+  auth: { token: 'YOUR_BUCKET_TOKEN' }
+})
+
+const submit = (event, ...args) => socket.timeout(10000).emitWithAck(event, ...args)
+```
+
+### Requests
+
+| Event | Arguments                                                                           | Acknowledgement                                                                                                                                      |
+| ----- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `now` | none                                                                                | `{ timestamp }`: the server time in milliseconds, e.g. to adjust client clocks                                                                       |
+| `ref` | `ref`: 64 lowercase hex characters, or `null` to unsubscribe                        | `null`                                                                                                                                               |
+| `get` | `{ known }`: the version the client already has, optional                           | `null` when there's no blob, `{ version }` when `known` is the current version, `{ data, version }` otherwise                                        |
+| `set` | `{ data, version }`: the base64 data, and the version it's based on unless it's new | `{ success: true, version }` with the new version, or `{ success: false, data, version }` with the current blob when `version` isn't the current one |
+
+- A socket works with a single blob at a time: `ref` selects it for the following `get` and `set` requests and subscribes the socket to its changes. Requests before it fail with `Reference is not provided`.
+- The reference is all it takes to find a blob in a bucket, so derive it from a secret known only to the clients (e.g. as an HMAC of it), never from guessable data.
+- `set` of a missing blob creates it with version 1, whatever version is given.
+- After a successful `set`, the server emits `changed` with no arguments to the other sockets subscribed to the same blob, but not to its author. The notification is sent after the acknowledgement to the author. Clients usually react to it with `get`.
+- Socket.IO limits messages to 1,000,000 bytes by default, which is less than the data limit of 1MB, so larger requests close the connection without any acknowledgement.
+
 ## Setup
 
 ### Prerequisites
@@ -39,44 +75,11 @@ TOKEN_SECRET=your_secure_random_secret_here
 
 **⚠️ Security Note:** Use a strong, randomly generated string. In production, consider using a secure secret management system.
 
-### 2. Generate an Access Token
-
-Blobs organizes data into **buckets** (isolated namespaces for different applications or environments). To access a bucket, you need a dedicated token.
-
-Generate a token for your bucket:
-
-```bash
-npm run token your-bucket-name
-# or
-yarn token your-bucket-name
-```
-
-The command will output a JWT token like:
-
-```
-Token for bucket: your-bucket-name
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-### 3. Use the Token in Your Application
-
-Copy this token and include it in your client application's requests as an auth header:
-
-```javascript
-// Example in JavaScript
-const socket = io('https://your-blobs-server', {
-  transports: ['websocket'],
-  auth: { token: 'YOUR_GENERATED_TOKEN_HERE' }
-})
-```
-
-**Note:** Each token is scoped to a specific bucket and cannot access data from other buckets.
-
 ### Quick Start Summary
 
 1. Set `TOKEN_SECRET` in `.env`
 2. Generate a bucket-specific token with `npm run token <bucket-name>`
-3. Use the token in your client's auth header
+3. Connect the client as described in [Protocol](#protocol)
 4. Start the server with `npm start`
 
 ## Development
