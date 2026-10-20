@@ -85,6 +85,26 @@ As the production secret lives only on the server, generate production tokens in
 TOKEN_SECRET=<secret from ~/blobs/ecosystem.json> npm run token <bucket>
 ```
 
+## Storage
+
+Every blob is a JSON file `<STORAGE>/<bucket>/<first 2 characters of the reference>/<reference>.json`:
+
+```json
+{
+  "data": "AAAA...",
+  "version": 3,
+  "created": 1760000000000,
+  "updated": 1760000500000,
+  "ip": "203.0.113.7"
+}
+```
+
+`created` and `updated` are timestamps in milliseconds, the latter appearing since the second version, and `ip` is the address of the last writer taken from the `X-Real-IP` header of the reverse proxy, `unknown` without it.
+
+- Writes go to a temporary `.temp` file first, which then atomically replaces the blob, so interrupted writes never damage it. `.backup` files left by interrupted writes of older versions are restored on reading.
+- Blob files which can't be parsed are logged and renamed to `<reference>.json.corrupted-<timestamp>`, and such blobs are treated as missing, so clients can write them again. Investigate and remove these files manually.
+- The storage directory is the only state of the server, so back it up regularly. Copying it while the server runs is safe, as blob files are only ever replaced atomically.
+
 ## Setup
 
 ### Prerequisites
