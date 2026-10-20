@@ -140,7 +140,7 @@ The same can be done manually with `npm run deploy` (requires a clean working tr
 
 The server needs Node.js 24 installed with nvm, PM2 installed globally for it, and rsync.
 
-1. Create `~/blobs/ecosystem.json` from [deploy/ecosystem.example.json](deploy/ecosystem.example.json), set `TOKEN_SECRET`, `PORT` and `STORAGE`, and make it private with `chmod 600 ~/blobs/ecosystem.json`.
+1. Create `~/blobs/ecosystem.json` from [deploy/ecosystem.example.json](deploy/ecosystem.example.json), set the [variables](#configuration) with a new random `TOKEN_SECRET`, never the one from the examples, and make the file private with `chmod 600 ~/blobs/ecosystem.json`.
 2. Deploy the first release, then save the PM2 process list and make PM2 start on boot (once per server): `pm2 save` and `pm2 startup`.
 
 PM2 doesn't reread the ecosystem file on restarts, so after changing it:
@@ -149,6 +149,19 @@ PM2 doesn't reread the ecosystem file on restarts, so after changing it:
 - for other changes, like `script`, run `pm2 delete blobs && pm2 start ecosystem.json && pm2 save`.
 
 Deployments fail with a hint when PM2 runs the app from another path than `~/blobs/current/index.js`.
+
+The server listens to plain HTTP, so it needs a reverse proxy terminating TLS, passing WebSocket connections through and setting the `X-Real-IP` header. For example, with nginx:
+
+```nginx
+location / {
+  proxy_pass http://127.0.0.1:3000;
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+}
+```
 
 ### GitHub Actions Secrets
 
