@@ -32,6 +32,23 @@ healthy() {
   return 1
 }
 
+# PM2 keeps the script path an app was started with, and restarts don't update
+# it, so a changed path in the ecosystem file takes effect only after
+# `pm2 delete` and `pm2 start`. Without this check an app started from another
+# path would pass the health check with its old code.
+runs_current() {
+  local name
+  name=$(node -p "require('./ecosystem.json').apps[0].name")
+  pm2 jlist | node -e "
+    const apps = JSON.parse(require('fs').readFileSync(0, 'utf8'))
+    const app = apps.find((app) => app.name === process.argv[1])
+    process.exit(app?.pm2_env.pm_exec_path === process.argv[2] ? 0 : 1)
+  " "$name" "$PWD/current/index.js" && return 0
+  echo "PM2 doesn't run $PWD/current/index.js, recreate the app:" >&2
+  echo "  pm2 delete $name && pm2 start ecosystem.json && pm2 save" >&2
+  return 1
+}
+
 # Replacing a link by renaming is atomic, unlike `ln -sfn` alone
 link() {
   ln -sfn "$2" "$1.tmp"
@@ -47,7 +64,7 @@ start_release() {
   local release=$1 active=$2
   link current "$release"
   # A failed restart is handled like a release not responding
-  if restart && healthy; then
+  if restart && runs_current && healthy; then
     [[ -n $active ]] && link previous "$active"
     pm2 save --silent
     echo "Release $release is active"
