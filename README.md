@@ -136,15 +136,6 @@ As the secret lives only on the server, generate tokens in a checkout of this re
 TOKEN_SECRET=<secret from ~/blobs/ecosystem.json> npm run token <bucket>
 ```
 
-### Migration from the Previous Deployment
-
-Previously the build and its `.env` were uploaded directly to `~/blobs`, and PM2 ran `~/blobs/index.js`.
-
-1. On the server, replace `~/blobs/ecosystem.json` with the new one (see Server Setup) moving `TOKEN_SECRET`, `PORT` and `STORAGE` from `~/blobs/.env`. If `STORAGE` isn't set there, leave the default path from the example or remove it, otherwise the existing blobs won't be found.
-2. Deploy the first release. It's expected to fail with the hint to recreate the app, while the old app keeps working.
-3. Recreate the app as hinted, which starts it from the new release in seconds, and make sure it works: `pm2 delete blobs && pm2 start ecosystem.json && pm2 save`.
-4. Remove the files of the previous deployment from `~/blobs`, keeping `releases`, `current`, `previous` and `ecosystem.json`.
-
 ## License
 
 Distributed under the GNU General Public License v3.0. See the [LICENSE](./LICENSE) file for more details.
