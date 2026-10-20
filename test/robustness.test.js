@@ -57,6 +57,13 @@ describe('malformed requests', () => {
   }
 })
 
+// Blobs of random references may share directories, so only the files of the
+// given blob are listed
+async function blobFiles(bucket, ref) {
+  const names = await fs.readdir(path.dirname(blobPath(bucket, ref)))
+  return names.filter((name) => name.startsWith(ref))
+}
+
 const blobPath = (bucket, ref) => path.join(storageDir, bucket, ref.substring(0, 2), `${ref}.json`)
 
 async function writeFile(file, content) {
@@ -120,7 +127,7 @@ describe('storage failures', () => {
       await fs.chmod(file, 0o600)
     }
     assert.deepEqual(JSON.parse(await fs.readFile(file, 'utf8')), blob)
-    assert.deepEqual(await fs.readdir(path.dirname(file)), [`${ref}.json`])
+    assert.deepEqual(await blobFiles('test', ref), [`${ref}.json`])
   })
 
   it('leave no temporary files after writes', async () => {
@@ -129,7 +136,6 @@ describe('storage failures', () => {
     await submit(client, 'ref', ref)
     await submit(client, 'set', { data: 'EEEE' })
     await submit(client, 'set', { data: 'FFFF', version: 1 })
-    const dir = path.dirname(blobPath('test', ref))
-    assert.deepEqual(await fs.readdir(dir), [`${ref}.json`])
+    assert.deepEqual(await blobFiles('test', ref), [`${ref}.json`])
   })
 })
