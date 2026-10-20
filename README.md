@@ -105,26 +105,19 @@ Every blob is a JSON file `<STORAGE>/<bucket>/<first 2 characters of the referen
 - Blob files which can't be parsed are logged and renamed to `<reference>.json.corrupted-<timestamp>`, and such blobs are treated as missing, so clients can write them again. Investigate and remove these files manually.
 - The storage directory is the only state of the server, so back it up regularly. Copying it while the server runs is safe, as blob files are only ever replaced atomically.
 
-## Setup
-
-### Prerequisites
-
-- Node.js (version 24 or higher)
-- npm or yarn
-
-### Quick Start Summary
-
-1. Set `TOKEN_SECRET` in `.env` (see [Configuration](#configuration))
-2. Generate a bucket-specific token with `npm run token <bucket-name>`
-3. Connect the client as described in [Protocol](#protocol)
-4. Start the server with `npm start`
-
 ## Development
 
+Development requires Node.js 24 or higher:
+
 ```bash
-npm test        # Run tests
-npm run check   # Run the linter and check formatting
+npm install
+cp .env.example .env   # and set TOKEN_SECRET in it
+npm start              # Start the server at http://localhost:3000
+npm test               # Run tests
+npm run check          # Run the linter and check formatting
 ```
+
+Then generate a token for a bucket (see [Tokens](#tokens)) and connect a client as described in [Protocol](#protocol).
 
 ## Deployment
 
