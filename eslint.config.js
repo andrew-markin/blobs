@@ -1,7 +1,6 @@
-import { fixupPluginRules } from '@eslint/compat'
 import js from '@eslint/js'
 import { defineConfig, globalIgnores } from 'eslint/config'
-import pluginImport from 'eslint-plugin-import'
+import pluginImportX from 'eslint-plugin-import-x'
 import pluginSimpleImportSort from 'eslint-plugin-simple-import-sort'
 import globals from 'globals'
 
@@ -26,15 +25,15 @@ export default defineConfig([
   js.configs.recommended,
   {
     plugins: {
-      import: fixupPluginRules(pluginImport),
+      'import-x': pluginImportX,
       'simple-import-sort': pluginSimpleImportSort
     },
     rules: {
       'simple-import-sort/imports': 'error',
       'simple-import-sort/exports': 'error',
-      'import/first': 'error',
-      'import/newline-after-import': 'error',
-      'import/no-duplicates': 'error'
+      'import-x/first': 'error',
+      'import-x/newline-after-import': 'error',
+      'import-x/no-duplicates': 'error'
     }
   }
 ])
