@@ -2,7 +2,7 @@
   "apps": [
     {
       "name": "blobs",
-      "script": "index.js",
+      "script": "current/index.js",
       "exec_mode": "fork",
       "instances": 1,
       "autorestart": true,
@@ -10,7 +10,10 @@
       "cron_restart": "0 0 * * *",
       "time": true,
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "PORT": 3000,
+        "TOKEN_SECRET": "REPLACE_WITH_A_LONG_RANDOM_SECRET",
+        "STORAGE": "/home/developer/.local/share/blobs/storage"
       }
     }
   ]

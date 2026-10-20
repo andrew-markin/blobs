@@ -4,6 +4,9 @@
   "author": "Andrew Markin",
   "license": "GPL-3.0-only",
   "type": "module",
+  "config": {
+    "authority": "developer@blobs.mayfleet.com"
+  },
   "scripts": {
     "start": "node src/server.js",
     "token": "node src/token.js",
@@ -12,13 +15,14 @@
     "check:eslint": "eslint .",
     "check:format": "prettier --check .",
     "audit": "npm audit --omit=dev",
-    "deploy": "cross-env TARGET=developer@blobs.mayfleet.com npm-run-all deploy:*",
-    "deploy:reset": "rm -rf dist && mkdir -p dist",
-    "deploy:build": "ncc build src/server.js -o dist --minify",
-    "deploy:config": "cp .env ecosystem.json dist/",
-    "deploy:upload": "rsync -avz --rsync-path=\"mkdir -p ~/blobs && rsync\" dist/ $TARGET:blobs",
-    "deploy:restart": "ssh $TARGET \"export LC_ALL=en_US.UTF-8; source ~/.nvm/nvm.sh && cd ~/blobs && pm2 start ecosystem.json --silent && pm2 save\"",
-    "deploy:cleanup": "rm -rf dist"
+    "deploy": "cross-env RELEASE=$(date -u +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD) npm-run-all deploy:*",
+    "deploy:check": "test -z \"$(git status --porcelain)\" || (echo 'Working tree is not clean, commit or stash changes first' && exit 1)",
+    "deploy:build": "rm -rf dist && ncc build src/server.js -o dist --minify",
+    "deploy:upload": "rsync -az --rsync-path=\"mkdir -p ~/blobs/releases && rsync\" dist/ $npm_package_config_authority:blobs/releases/$RELEASE/",
+    "deploy:activate": "ssh $npm_package_config_authority bash -s -- activate $RELEASE < deploy/remote.sh",
+    "deploy:prune": "ssh $npm_package_config_authority bash -s -- prune < deploy/remote.sh",
+    "deploy:cleanup": "rm -rf dist",
+    "rollback": "ssh $npm_package_config_authority bash -s -- rollback < deploy/remote.sh"
   },
   "dependencies": {
     "async-lock": "^1.4.1",
