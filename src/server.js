@@ -7,7 +7,9 @@ import { createServer } from './app.js'
 
 const storageDir = process.env.STORAGE || path.join(os.homedir(), '.local/share/blobs/storage')
 
-const { server, execLock } = createServer({ storageDir })
+const minFreeSpace = Number(process.env.MIN_FREE_SPACE ?? 1024) * 1024 * 1024 // In megabytes
+
+const { server, execLock } = createServer({ storageDir, minFreeSpace })
 
 let shuttingDown = false
 

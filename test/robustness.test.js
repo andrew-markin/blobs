@@ -165,6 +165,32 @@ describe('storage failures', () => {
   })
 })
 
+describe('full storage', () => {
+  it('fails writes but keeps reads working', async () => {
+    const ref = randomRef()
+    const client = await connect()
+    await submit(client, 'ref', ref)
+    await submit(client, 'set', { data: 'IIII' })
+
+    const full = createServer({ storageDir, minFreeSpace: Infinity }).server
+    full.listen(0)
+    try {
+      const fullClient = io(`http://localhost:${full.httpServer.address().port}`, {
+        transports: ['websocket'],
+        auth: { token: getToken('test') },
+        reconnection: false
+      })
+      clients.push(fullClient)
+      await submit(fullClient, 'ref', ref)
+      const res = await submit(fullClient, 'set', { data: 'JJJJ', version: 1 })
+      assert.deepEqual(res, { error: 'Storage is full' })
+      assert.deepEqual(await submit(fullClient, 'get', {}), { data: 'IIII', version: 1 })
+    } finally {
+      await new Promise((resolve) => full.close(resolve))
+    }
+  })
+})
+
 describe('shutdown', () => {
   it('waits for writes in progress', async () => {
     const ref = randomRef()

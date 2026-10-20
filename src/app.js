@@ -1,4 +1,5 @@
 import AsyncLock from 'async-lock'
+import { statfs } from 'fs/promises'
 import fs from 'fs-extra'
 import Joi from 'joi'
 import mortice from 'mortice'
@@ -19,7 +20,7 @@ const MAX_DATA_LENGTH = MAX_MESSAGE_SIZE - 1000
 const RATE_BURST = 20
 const RATE_PER_SECOND = 5
 
-export function createServer({ storageDir }) {
+export function createServer({ storageDir, minFreeSpace = 0 }) {
   fs.ensureDirSync(storageDir)
 
   const execLock = mortice('exec-lock', { timeout: 30000 })
@@ -201,6 +202,10 @@ export function createServer({ storageDir }) {
         assertRef()
         await dataSchema.validateAsync(data)
         await versionSchema.validateAsync(version)
+        // Keep the storage readable and the rest of the server working when
+        // the disk is filling up
+        const { bavail, bsize } = await statfs(storageDir)
+        if (bavail * bsize < minFreeSpace) throw new Error('Storage is full')
         const res = await blobLock.acquire(getKey(), async () => {
           const nextBlob = { data }
           const prevBlob = await readBlob()

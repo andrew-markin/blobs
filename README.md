@@ -52,16 +52,18 @@ const submit = (event, ...args) => socket.timeout(10000).emitWithAck(event, ...a
 - After a successful `set`, the server emits `changed` with no arguments to the other sockets subscribed to the same blob, but not to its author. The notification is sent after the acknowledgement to the author. Clients usually react to it with `get`.
 - `data` is limited to 999,000 base64 characters (749,250 bytes decoded), and longer data fails the request. Messages larger than 1,000,000 bytes close the connection without any acknowledgement.
 - Every socket can make 5 requests per second on average, with bursts of up to 20 requests. Requests above the limit fail with `Too many requests`.
+- `set` fails with `Storage is full` when the free space of the storage disk is below `MIN_FREE_SPACE` (see [Configuration](#configuration)).
 
 ## Configuration
 
 The server is configured with environment variables. In development they can also be set in a `.env` file in the working directory, see [.env.example](.env.example).
 
-| Variable       | Default                        | Description                                                                                                                                      |
-| -------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `TOKEN_SECRET` | required                       | Secret for signing and verifying bucket tokens. The server and the token script refuse to run without it, and changing it invalidates all tokens |
-| `PORT`         | `3000`                         | Port of the HTTP server, which is expected to be behind a reverse proxy terminating TLS                                                          |
-| `STORAGE`      | `~/.local/share/blobs/storage` | Directory of the blob files                                                                                                                      |
+| Variable         | Default                        | Description                                                                                                                                      |
+| ---------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TOKEN_SECRET`   | required                       | Secret for signing and verifying bucket tokens. The server and the token script refuse to run without it, and changing it invalidates all tokens |
+| `PORT`           | `3000`                         | Port of the HTTP server, which is expected to be behind a reverse proxy terminating TLS                                                          |
+| `STORAGE`        | `~/.local/share/blobs/storage` | Directory of the blob files                                                                                                                      |
+| `MIN_FREE_SPACE` | `1024`                         | Free space of the storage disk in megabytes, below which `set` requests fail with `Storage is full` while the blobs stay readable                |
 
 Use a long random secret, e.g. generated with `openssl rand -base64 32`. In production the variables are set in the PM2 ecosystem file, see [Deployment](#deployment).
 

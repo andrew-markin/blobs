@@ -13,7 +13,8 @@
         "NODE_ENV": "production",
         "PORT": 3000,
         "TOKEN_SECRET": "REPLACE_WITH_A_LONG_RANDOM_SECRET",
-        "STORAGE": "/home/developer/.local/share/blobs/storage"
+        "STORAGE": "/home/developer/.local/share/blobs/storage",
+        "MIN_FREE_SPACE": 1024
       }
     }
   ]
