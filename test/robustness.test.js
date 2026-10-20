@@ -91,6 +91,38 @@ describe('storage failures', () => {
     assert.deepEqual(res, { success: false, data: 'AAAA', version: 3 })
   })
 
+  it('keep a corrupted blob aside and treat it as missing', async () => {
+    const ref = randomRef()
+    const file = blobPath('test', ref)
+    await writeFile(file, 'not json')
+    const client = await connect()
+    await submit(client, 'ref', ref)
+    assert.equal(await submit(client, 'get', {}), null)
+    const kept = (await fs.readdir(path.dirname(file))).filter((name) =>
+      name.startsWith(`${ref}.json.corrupted-`)
+    )
+    assert.equal(kept.length, 1)
+    assert.equal(await fs.readFile(path.join(path.dirname(file), kept[0]), 'utf8'), 'not json')
+    assert.deepEqual(await submit(client, 'set', { data: 'DDDD' }), { success: true, version: 1 })
+  })
+
+  it('report read errors without touching the blob', async () => {
+    const ref = randomRef()
+    const file = blobPath('test', ref)
+    await writeFile(file, JSON.stringify(blob))
+    await fs.chmod(file, 0o000)
+    try {
+      const client = await connect()
+      await submit(client, 'ref', ref)
+      assert.equal(typeof (await submit(client, 'get', {})).error, 'string')
+      assert.equal(typeof (await submit(client, 'set', { data: 'GGGG' })).error, 'string')
+    } finally {
+      await fs.chmod(file, 0o600)
+    }
+    assert.deepEqual(JSON.parse(await fs.readFile(file, 'utf8')), blob)
+    assert.deepEqual(await fs.readdir(path.dirname(file)), [`${ref}.json`])
+  })
+
   it('leave no temporary files after writes', async () => {
     const ref = randomRef()
     const client = await connect()

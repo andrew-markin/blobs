@@ -29,6 +29,10 @@ export function createServer({ storageDir }) {
   const refSchema = Joi.string().allow(null).lowercase().hex().length(64)
   const dataSchema = Joi.string().base64().max(0x100000) // 1MB
   const versionSchema = Joi.number().integer().min(1).optional()
+  const blobSchema = Joi.object({
+    data: Joi.string().required(),
+    version: Joi.number().integer().min(1).required()
+  }).unknown(true)
 
   server.on('connection', (socket) => {
     console.log(`Socket ${socket.id} connected`)
@@ -82,11 +86,21 @@ export function createServer({ storageDir }) {
         // Restore blob from backup left by an interrupted write of older versions
         await fs.rename(blobBackupPath, blobPath)
       }
-      // Read blob if it exists
-      return (
-        ((await fs.pathExists(blobPath)) && (await fs.readJson(blobPath, { throws: false }))) ||
-        undefined
-      )
+      if (!(await fs.pathExists(blobPath))) return
+      // Other read errors (e.g. permissions) are passed on to the client
+      const content = await fs.readFile(blobPath, 'utf8')
+      let blob, problem
+      try {
+        blob = JSON.parse(content)
+        problem = blobSchema.validate(blob).error?.message
+      } catch (err) {
+        problem = err.message
+      }
+      if (!problem) return blob
+      // Keep the corrupted blob for investigation and treat it as missing
+      const corruptedPath = `${blobPath}.corrupted-${Date.now()}`
+      console.error(`Blob ${blobPath} is corrupted (${problem}), moved to ${corruptedPath}`)
+      await fs.rename(blobPath, corruptedPath)
     }
 
     const writeBlob = async (value) => {
