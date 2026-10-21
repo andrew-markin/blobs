@@ -170,6 +170,10 @@ location / {
 }
 ```
 
+### Usage Statistics
+
+[scripts/stats.sh](scripts/stats.sh) appends a line to `~/blobs/stats.csv` with the date, the numbers of blobs edited within the last 1, 7 and 30 days, and the total number of blobs. It counts blob files by their modification times, so nothing about the clients is collected. The comment at the top of the script has the commands to copy it to the server and run it daily with cron.
+
 ### GitHub Actions Secrets
 
 Deployments from GitHub Actions need an SSH key dedicated to them and the server host key:
