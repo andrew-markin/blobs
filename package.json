@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "async-lock": "^1.4.1",
-    "dotenv": "^18.0.8",
+    "dotenv": "^18.0.9",
     "fs-extra": "^11.4.1",
     "joi": "^18.3.0",
     "jsonwebtoken": "^9.0.3",
@@ -41,7 +41,7 @@
     "eslint-plugin-import-x": "^4.17.1",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "globals": "^17.13.0",
-    "npm-run-all2": "^9.0.3",
+    "npm-run-all2": "^9.0.4",
     "prettier": "^3.9.10",
     "socket.io-client": "^4.8.4"
   }
